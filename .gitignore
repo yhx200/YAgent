@@ -1,0 +1,15 @@
+.idea/
+.vscode/
+
+node_modules/
+dist/
+target/
+
+.env
+*.log
+
+runtime-data/
+tool-cache/
+workspace/
+
+.DS_Store
