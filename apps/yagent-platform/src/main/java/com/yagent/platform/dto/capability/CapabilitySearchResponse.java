@@ -14,7 +14,7 @@ public class CapabilitySearchResponse {
 
         private String capabilityCode;
 
-        private String capabilityName;
+        private String name;
 
         private Double score;
 
@@ -27,5 +27,9 @@ public class CapabilitySearchResponse {
         private String type;
 
         private String toolId;
+
+        private String version;
+
+        private String toolName;
     }
 }
