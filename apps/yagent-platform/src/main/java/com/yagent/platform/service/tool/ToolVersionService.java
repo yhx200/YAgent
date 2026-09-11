@@ -4,6 +4,8 @@ import com.yagent.platform.dto.tool.ToolVersionResponse;
 
 public interface ToolVersionService {
 
-    ToolVersionResponse getVersion(String toolId, String version);
-
+    ToolVersionResponse getVersion(
+            String toolId,
+            String version
+    );
 }
