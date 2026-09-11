@@ -5,6 +5,7 @@ import com.yagent.platform.dto.capability.CapabilitySearchResponse;
 
 public interface CapabilityService {
 
-     CapabilitySearchResponse search(CapabilitySearchRequest request);
-
+     CapabilitySearchResponse search(
+             CapabilitySearchRequest request
+     );
 }
