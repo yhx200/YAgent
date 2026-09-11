@@ -13,19 +13,19 @@ public class ToolVersionDO {
 
     private String version;
 
+    private String protocolVersion;
+
+    private String runtimeType;
+
     private String manifestJson;
 
-    private String bucket;
+    private String packageObjectKey;
 
-    private String objectKey;
-
-    private String sha256;
+    private String packageSha256;
 
     private String signature;
 
     private String status;
 
     private Date createTime;
-
-    private Date updateTime;
 }
