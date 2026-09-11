@@ -5,6 +5,7 @@ import com.yagent.platform.dto.installation.InstallationResolveResponse;
 
 public interface InstallationService {
 
-    InstallationResolveResponse resolve(InstallationResolveRequest request);
-
+    InstallationResolveResponse resolve(
+            InstallationResolveRequest request
+    );
 }
