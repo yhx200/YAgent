@@ -1,4 +1,4 @@
-package com.yagent.platform.domain;
+package com.yagent.platform.domain.installation;
 
 import lombok.Data;
 
