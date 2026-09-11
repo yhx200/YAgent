@@ -2,17 +2,18 @@ package com.yagent.platform.service.tool.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yagent.platform.domain.ToolVersionDO;
+import com.yagent.platform.domain.tool.ToolVersionDO;
 import com.yagent.platform.dto.tool.ToolVersionResponse;
 import com.yagent.platform.exception.BizException;
 import com.yagent.platform.mapper.tool.ToolVersionMapper;
 import com.yagent.platform.service.tool.ToolVersionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
-public class ToolVersionServiceImpl implements ToolVersionService {
+public class ToolVersionServiceImpl
+        implements ToolVersionService {
+
     @Autowired
     private ToolVersionMapper toolVersionMapper;
 
@@ -24,46 +25,27 @@ public class ToolVersionServiceImpl implements ToolVersionService {
             String toolId,
             String version) {
 
-        if (!StringUtils.hasText(toolId)) {
-
-            throw new BizException(
-                    "INVALID_ARGUMENT",
-                    "toolId cannot be empty"
-            );
-        }
-
-        if (!StringUtils.hasText(version)) {
-
-            throw new BizException(
-                    "INVALID_ARGUMENT",
-                    "version cannot be empty"
-            );
-        }
-
-        ToolVersionDO toolVersion =
+        ToolVersionDO record =
                 toolVersionMapper
                         .selectByToolIdAndVersion(
                                 toolId,
                                 version
                         );
 
-        if (toolVersion == null) {
+        if (record == null) {
 
             throw new BizException(
                     "TOOL_VERSION_NOT_FOUND",
-                    "Tool version not found: "
-                            + toolId
-                            + ":"
-                            + version
+                    "Tool版本不存在"
             );
         }
 
         if (!"PUBLISHED".equals(
-                toolVersion.getStatus())) {
+                record.getStatus())) {
 
             throw new BizException(
                     "TOOL_VERSION_UNAVAILABLE",
-                    "Tool version unavailable"
+                    "Tool版本未发布"
             );
         }
 
@@ -73,14 +55,14 @@ public class ToolVersionServiceImpl implements ToolVersionService {
 
             manifest =
                     objectMapper.readTree(
-                            toolVersion.getManifestJson()
+                            record.getManifestJson()
                     );
 
         } catch (Exception e) {
 
             throw new BizException(
-                    "INVALID_TOOL_MANIFEST",
-                    "Invalid tool manifest",
+                    "INVALID_MANIFEST",
+                    "manifest_json解析失败",
                     e
             );
         }
@@ -89,11 +71,19 @@ public class ToolVersionServiceImpl implements ToolVersionService {
                 new ToolVersionResponse();
 
         response.setToolId(
-                toolVersion.getToolId()
+                record.getToolId()
         );
 
         response.setVersion(
-                toolVersion.getVersion()
+                record.getVersion()
+        );
+
+        response.setProtocolVersion(
+                record.getProtocolVersion()
+        );
+
+        response.setRuntimeType(
+                record.getRuntimeType()
         );
 
         response.setManifest(manifest);
@@ -102,11 +92,11 @@ public class ToolVersionServiceImpl implements ToolVersionService {
                 new ToolVersionResponse.Artifact();
 
         artifact.setSha256(
-                toolVersion.getSha256()
+                record.getPackageSha256()
         );
 
         artifact.setSignature(
-                toolVersion.getSignature()
+                record.getSignature()
         );
 
         response.setArtifact(artifact);
