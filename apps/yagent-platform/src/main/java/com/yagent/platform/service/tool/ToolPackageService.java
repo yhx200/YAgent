@@ -1,10 +1,11 @@
 package com.yagent.platform.service.tool;
 
-import com.yagent.platform.dto.packageinfo.ToolPackageTicketRequest;
-import com.yagent.platform.dto.packageinfo.ToolPackageTicketResponse;
+import com.yagent.platform.dto.tool.ToolPackageTicketRequest;
+import com.yagent.platform.dto.tool.ToolPackageTicketResponse;
 
 public interface ToolPackageService {
 
-    ToolPackageTicketResponse createDownloadTicket(ToolPackageTicketRequest request);
-
+    ToolPackageTicketResponse createDownloadTicket(
+            ToolPackageTicketRequest request
+    );
 }
