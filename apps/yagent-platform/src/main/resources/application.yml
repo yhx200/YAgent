@@ -13,5 +13,6 @@ mybatis:
 yagent:
   minio:
     endpoint: http://127.0.0.1:9000
-    access-key: minioadmin
-    secret-key: minioadmin
+    access-key: yagentadmin
+    secret-key: YAgent12345678
+    bucket: yagent-tools
