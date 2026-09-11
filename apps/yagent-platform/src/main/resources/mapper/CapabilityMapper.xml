@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 
 <!DOCTYPE mapper
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
@@ -6,60 +6,44 @@
 
 <mapper namespace="com.yagent.platform.mapper.capability.CapabilityMapper">
 
-    <resultMap id="BaseResultMap"
-               type="com.yagent.platform.domain.CapabilityDO">
-
-        <id column="id"
-            property="id"/>
-
-        <result column="capability_code"
-                property="capabilityCode"/>
-
-        <result column="capability_name"
-                property="capabilityName"/>
-
-        <result column="description"
-                property="description"/>
-
-        <result column="keywords"
-                property="keywords"/>
-
-        <result column="provider_type"
-                property="providerType"/>
-
-        <result column="tool_id"
-                property="toolId"/>
-
-        <result column="status"
-                property="status"/>
-
-        <result column="create_time"
-                property="createTime"/>
-
-        <result column="update_time"
-                property="updateTime"/>
-
-    </resultMap>
-
-
-    <select id="selectAllEnabled"
-            resultMap="BaseResultMap">
+    <select id="selectAvailableByTenant"
+            resultType="com.yagent.platform.domain.CapabilityProviderDO">
 
         SELECT
-        id,
-        capability_code,
-        capability_name,
-        description,
-        keywords,
-        provider_type,
-        tool_id,
-        status,
-        create_time,
-        update_time
+        c.capability_code AS capabilityCode,
+        c.name AS capabilityName,
+        c.description AS description,
+        c.category AS category,
+        c.keywords AS keywords,
 
-        FROM ya_capability
+        tc.tool_id AS toolId,
+        tc.tool_version AS toolVersion,
+        tc.tool_name AS toolName,
+        tc.priority AS priority
 
-        WHERE status = 'ENABLED'
+        FROM ya_capability c
+
+        INNER JOIN ya_tool_capability tc
+        ON tc.capability_code = c.capability_code
+
+        INNER JOIN ya_tenant_installation ti
+        ON ti.tool_id = tc.tool_id
+        AND ti.version = tc.tool_version
+        AND ti.tenant_id = #{tenantId}
+
+        INNER JOIN ya_tool t
+        ON t.tool_id = tc.tool_id
+
+        INNER JOIN ya_tool_version tv
+        ON tv.tool_id = tc.tool_id
+        AND tv.version = tc.tool_version
+
+        WHERE c.status = 'ACTIVE'
+        AND ti.status = 'ACTIVE'
+        AND t.status = 'ACTIVE'
+        AND tv.status = 'PUBLISHED'
+
+        ORDER BY tc.priority ASC
 
     </select>
 
