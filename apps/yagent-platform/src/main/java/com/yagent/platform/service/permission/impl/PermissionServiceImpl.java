@@ -1,25 +1,33 @@
 package com.yagent.platform.service.permission.impl;
 
-import com.yagent.platform.domain.ToolInstallationDO;
-import com.yagent.platform.domain.ToolVersionDO;
+import com.yagent.platform.domain.installation.TenantInstallationDO;
+import com.yagent.platform.domain.permission.TenantToolPolicyDO;
+import com.yagent.platform.domain.permission.ToolPermissionDO;
 import com.yagent.platform.dto.permission.PermissionEvaluateRequest;
 import com.yagent.platform.dto.permission.PermissionEvaluateResponse;
-import com.yagent.platform.mapper.tool.ToolInstallationMapper;
-import com.yagent.platform.mapper.tool.ToolVersionMapper;
+import com.yagent.platform.mapper.installation.TenantInstallationMapper;
+import com.yagent.platform.mapper.permission.TenantToolPolicyMapper;
+import com.yagent.platform.mapper.permission.ToolPermissionMapper;
 import com.yagent.platform.service.permission.PermissionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.*;
+
 @Service
-public class PermissionServiceImpl implements PermissionService {
+public class PermissionServiceImpl
+        implements PermissionService {
 
     @Autowired
-    private ToolInstallationMapper installationMapper;
+    private ToolPermissionMapper toolPermissionMapper;
 
     @Autowired
-    private ToolVersionMapper toolVersionMapper;
+    private TenantToolPolicyMapper tenantToolPolicyMapper;
 
+    @Autowired
+    private TenantInstallationMapper installationMapper;
 
+    @Override
     public PermissionEvaluateResponse evaluate(
             PermissionEvaluateRequest request) {
 
@@ -27,27 +35,11 @@ public class PermissionServiceImpl implements PermissionService {
                 || request.getTenantId() == null) {
 
             return PermissionEvaluateResponse.deny(
-                    "tenantId is required"
+                    "tenantId不能为空"
             );
         }
 
-        if (request.getToolId() == null
-                || request.getToolId().trim().isEmpty()) {
-
-            return PermissionEvaluateResponse.deny(
-                    "toolId is required"
-            );
-        }
-
-        if (request.getVersion() == null
-                || request.getVersion().trim().isEmpty()) {
-
-            return PermissionEvaluateResponse.deny(
-                    "version is required"
-            );
-        }
-
-        ToolInstallationDO installation =
+        TenantInstallationDO installation =
                 installationMapper
                         .selectByTenantAndTool(
                                 request.getTenantId(),
@@ -57,75 +49,119 @@ public class PermissionServiceImpl implements PermissionService {
         if (installation == null) {
 
             return PermissionEvaluateResponse.deny(
-                    "Tool is not installed"
+                    "Tool未安装"
             );
         }
 
-        if (!"ENABLED".equals(
+        if (!"ACTIVE".equals(
                 installation.getStatus())) {
 
             return PermissionEvaluateResponse.deny(
-                    "Tool installation is disabled"
+                    "Tool安装已停用"
             );
         }
 
-        if (!request.getVersion().equals(
-                installation.getVersion())) {
+        if (!installation
+                .getVersion()
+                .equals(request.getVersion())) {
 
             return PermissionEvaluateResponse.deny(
-                    "Requested version is not installed"
+                    "请求版本不是当前安装版本"
             );
         }
 
-        ToolVersionDO toolVersion =
-                toolVersionMapper
-                        .selectByToolIdAndVersion(
+        List<ToolPermissionDO> permissions =
+                toolPermissionMapper
+                        .selectByToolVersion(
                                 request.getToolId(),
                                 request.getVersion()
                         );
 
-        if (toolVersion == null) {
+        /*
+         * Tool没有声明任何特殊权限。
+         */
+        if (permissions == null
+                || permissions.isEmpty()) {
 
-            return PermissionEvaluateResponse.deny(
-                    "Tool version does not exist"
-            );
+            return PermissionEvaluateResponse.allow();
         }
 
-        if (!"PUBLISHED".equals(
-                toolVersion.getStatus())) {
-
-            return PermissionEvaluateResponse.deny(
-                    "Tool version is unavailable"
-            );
-        }
+        List<TenantToolPolicyDO> policies =
+                tenantToolPolicyMapper
+                        .selectActivePolicies(
+                                request.getTenantId(),
+                                request.getToolId()
+                        );
 
         /*
+         * key:
+         * NETWORK
          *
-         * V1 到这里直接 ALLOW。
-         *
-         * todo:后面再解析 manifest：
-         *
-         * permissions.network
-         * permissions.filesystem
-         * permissions.shell
-         * permissions.secret
-         *
-         * 再判断是否：
-         *
-         * ALLOW
-         * REQUIRE_APPROVAL
-         * DENY
-         *
-         * if (requiresNetwork
-         *      && !userApprovedNetwork) {
-         *      return PermissionEvaluateResponse
-         *          .requireApproval(
-         *              "Tool requests external network access"
-         *          );
-         *      }
+         * value:
+         * ALLOW / DENY
          */
+        Map<String, String> policyMap =
+                new HashMap<>();
+
+        if (policies != null) {
+
+            for (TenantToolPolicyDO policy : policies) {
+
+                /*
+                 * SQL里 Tool 专属策略排在前面。
+                 *
+                 * 所以第一次出现就保留。
+                 */
+                if (!policyMap.containsKey(
+                        policy.getPolicyType())) {
+
+                    policyMap.put(
+                            policy.getPolicyType(),
+                            policy.getPolicyValue()
+                    );
+                }
+            }
+        }
+
+        List<String> approvalReasons =
+                new ArrayList<>();
+
+        for (ToolPermissionDO permission
+                : permissions) {
+
+            String policy =
+                    policyMap.get(
+                            permission.getPermissionType()
+                    );
+
+            if ("DENY".equalsIgnoreCase(policy)) {
+
+                return PermissionEvaluateResponse.deny(
+                        "租户禁止权限："
+                                + permission.getPermissionType()
+                );
+            }
+
+            if ("ALLOW".equalsIgnoreCase(policy)) {
+                continue;
+            }
+
+            approvalReasons.add(
+                    "Tool requests "
+                            + permission.getPermissionType()
+                            + ": "
+                            + permission.getPermissionValue()
+            );
+        }
+
+        if (!approvalReasons.isEmpty()) {
+
+            return PermissionEvaluateResponse
+                    .requireApproval(
+                            approvalReasons
+                    );
+        }
 
         return PermissionEvaluateResponse.allow();
     }
-
 }
