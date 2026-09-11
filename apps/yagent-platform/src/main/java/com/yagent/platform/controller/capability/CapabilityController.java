@@ -4,10 +4,7 @@ import com.yagent.platform.dto.capability.CapabilitySearchRequest;
 import com.yagent.platform.dto.capability.CapabilitySearchResponse;
 import com.yagent.platform.service.capability.CapabilityService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/inner/v1/capabilities")
