@@ -5,6 +5,7 @@ import com.yagent.platform.dto.permission.PermissionEvaluateResponse;
 
 public interface PermissionService {
 
-    PermissionEvaluateResponse evaluate(PermissionEvaluateRequest request);
-
+    PermissionEvaluateResponse evaluate(
+            PermissionEvaluateRequest request
+    );
 }
