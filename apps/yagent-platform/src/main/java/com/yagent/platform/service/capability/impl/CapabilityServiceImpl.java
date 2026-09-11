@@ -1,8 +1,9 @@
 package com.yagent.platform.service.capability.impl;
 
-import com.yagent.platform.domain.CapabilityDO;
+import com.yagent.platform.domain.capability.CapabilityProviderDO;
 import com.yagent.platform.dto.capability.CapabilitySearchRequest;
 import com.yagent.platform.dto.capability.CapabilitySearchResponse;
+import com.yagent.platform.exception.BizException;
 import com.yagent.platform.mapper.capability.CapabilityMapper;
 import com.yagent.platform.service.capability.CapabilityService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +13,8 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 
 @Service
-public abstract class CapabilityServiceImpl implements CapabilityService {
+public class CapabilityServiceImpl
+        implements CapabilityService {
 
     @Autowired
     private CapabilityMapper capabilityMapper;
@@ -21,58 +23,47 @@ public abstract class CapabilityServiceImpl implements CapabilityService {
     public CapabilitySearchResponse search(
             CapabilitySearchRequest request) {
 
-        if (request == null) {
-            throw new IllegalArgumentException(
-                    "request cannot be null"
+        if (request == null
+                || request.getTenantId() == null) {
+
+            throw new BizException(
+                    "INVALID_ARGUMENT",
+                    "tenantId不能为空"
             );
         }
 
         if (!StringUtils.hasText(request.getQuery())) {
-            throw new IllegalArgumentException(
-                    "query cannot be empty"
+
+            throw new BizException(
+                    "INVALID_ARGUMENT",
+                    "query不能为空"
             );
         }
 
-        int limit = request.getLimit() == null
-                ? 5
-                : request.getLimit();
+        List<CapabilityProviderDO> records =
+                capabilityMapper.selectAvailableByTenant(
+                        request.getTenantId()
+                );
 
-        if (limit <= 0) {
-            limit = 5;
-        }
+        Map<String,
+                CapabilitySearchResponse.CapabilityItem>
+                resultMap = new LinkedHashMap<>();
 
-        if (limit > 20) {
-            limit = 20;
-        }
+        for (CapabilityProviderDO record : records) {
 
-        List<CapabilityDO> capabilityList =
-                capabilityMapper.selectAllEnabled();
-
-        /*
-         * 一个 capabilityCode 未来可能有多个 Provider。
-         *
-         * 所以不能简单一行数据库 = 一个返回 item。
-         */
-        Map<String, CapabilitySearchResponse.CapabilityItem>
-                itemMap = new LinkedHashMap<String,
-                                CapabilitySearchResponse.CapabilityItem>();
-
-        String query = request.getQuery().trim();
-
-        for (CapabilityDO capability : capabilityList) {
-
-            double score = calculateScore(
-                    query,
-                    capability
-            );
+            double score =
+                    calculateScore(
+                            request.getQuery(),
+                            record
+                    );
 
             if (score <= 0) {
                 continue;
             }
 
             CapabilitySearchResponse.CapabilityItem item =
-                    itemMap.get(
-                            capability.getCapabilityCode()
+                    resultMap.get(
+                            record.getCapabilityCode()
                     );
 
             if (item == null) {
@@ -82,76 +73,89 @@ public abstract class CapabilityServiceImpl implements CapabilityService {
                                 .CapabilityItem();
 
                 item.setCapabilityCode(
-                        capability.getCapabilityCode()
+                        record.getCapabilityCode()
                 );
 
-                item.setCapabilityName(
-                        capability.getCapabilityName()
+                item.setName(
+                        record.getCapabilityName()
                 );
 
                 item.setScore(score);
 
                 item.setProviders(
-                        new ArrayList<
-                                CapabilitySearchResponse.Provider>()
+                        new ArrayList<>()
                 );
 
-                itemMap.put(
-                        capability.getCapabilityCode(),
+                resultMap.put(
+                        record.getCapabilityCode(),
                         item
                 );
-            } else {
 
-                if (score > item.getScore()) {
-                    item.setScore(score);
-                }
+            } else if (score > item.getScore()) {
+
+                item.setScore(score);
             }
 
             CapabilitySearchResponse.Provider provider =
                     new CapabilitySearchResponse.Provider();
 
-            provider.setType(
-                    capability.getProviderType()
-            );
+            provider.setType("TOOL");
 
             provider.setToolId(
-                    capability.getToolId()
+                    record.getToolId()
+            );
+
+            provider.setVersion(
+                    record.getToolVersion()
+            );
+
+            provider.setToolName(
+                    record.getToolName()
             );
 
             item.getProviders().add(provider);
         }
 
         List<CapabilitySearchResponse.CapabilityItem> items =
-                new ArrayList<
-                        CapabilitySearchResponse.CapabilityItem>(
-                        itemMap.values()
+                new ArrayList<>(
+                        resultMap.values()
                 );
 
         Collections.sort(
                 items,
-                new Comparator<
-                        CapabilitySearchResponse.CapabilityItem>() {
+                new Comparator<CapabilitySearchResponse.CapabilityItem>() {
 
                     @Override
                     public int compare(
-                            CapabilitySearchResponse.CapabilityItem o1,
-                            CapabilitySearchResponse.CapabilityItem o2) {
+                            CapabilitySearchResponse.CapabilityItem a,
+                            CapabilitySearchResponse.CapabilityItem b) {
 
                         return Double.compare(
-                                o2.getScore(),
-                                o1.getScore()
+                                b.getScore(),
+                                a.getScore()
                         );
                     }
                 }
         );
 
+        int limit =
+                request.getLimit() == null
+                        ? 5
+                        : request.getLimit();
+
+        if (limit <= 0) {
+            limit = 5;
+        }
+
+        if (limit > 20) {
+            limit = 20;
+        }
+
         if (items.size() > limit) {
 
-            items =
-                    new ArrayList<
-                            CapabilitySearchResponse.CapabilityItem>(
-                            items.subList(0, limit)
-                    );
+            items = new ArrayList<>(
+                    items.subList(0, limit)
+            );
         }
 
         CapabilitySearchResponse response =
@@ -162,110 +166,60 @@ public abstract class CapabilityServiceImpl implements CapabilityService {
         return response;
     }
 
-
-    /**
-     * V1 简单匹配。
-     *
-     * 后期这里替换成：
-     *
-     * embedding
-     * +
-     * vector search
-     * +
-     * rerank
-     */
     private double calculateScore(
             String query,
-            CapabilityDO capability) {
+            CapabilityProviderDO record) {
 
         double score = 0D;
 
-        /*
-         * 直接搜 capabilityCode。
-         */
-        if (StringUtils.hasText(
-                capability.getCapabilityCode())
-                &&
-                query.contains(
-                        capability.getCapabilityCode())) {
+        if (query.equals(
+                record.getCapabilityCode())) {
 
             return 1D;
         }
 
-        /*
-         * 能力名称。
-         */
         if (StringUtils.hasText(
-                capability.getCapabilityName())) {
+                record.getCapabilityName())) {
 
-            String name =
-                    capability.getCapabilityName();
+            if (query.contains(
+                    record.getCapabilityName())) {
 
-            if (query.contains(name)) {
-                score = Math.max(score, 0.95D);
+                score = 0.95D;
             }
         }
 
-        /*
-         * keywords:
-         *
-         * 天气,温度,天气预报,下雨
-         */
         if (StringUtils.hasText(
-                capability.getKeywords())) {
+                record.getKeywords())) {
 
             String[] keywords =
-                    capability
-                            .getKeywords()
-                            .split(",");
+                    record.getKeywords().split(",");
 
-            int matchCount = 0;
+            int count = 0;
 
             for (String keyword : keywords) {
 
-                if (!StringUtils.hasText(keyword)) {
-                    continue;
-                }
+                keyword = keyword.trim();
 
-                String value = keyword.trim();
+                if (keyword.length() > 0
+                        && query.contains(keyword)) {
 
-                if (query.contains(value)) {
-                    matchCount++;
+                    count++;
                 }
             }
 
-            if (matchCount > 0) {
+            if (count > 0) {
 
                 score = Math.max(
                         score,
                         Math.min(
                                 0.99D,
                                 0.90D
-                                        +
-                                        (matchCount - 1)
-                                                * 0.02D
+                                        + count * 0.02D
                         )
                 );
             }
         }
 
-        /*
-         * description 这里只做非常简单判断。
-         */
-        if (score == 0D
-                &&
-                StringUtils.hasText(
-                        capability.getDescription())) {
-
-            String description =
-                    capability.getDescription();
-
-            if (description.contains(query)) {
-                score = 0.80D;
-            }
-        }
-
         return score;
     }
-
 }
