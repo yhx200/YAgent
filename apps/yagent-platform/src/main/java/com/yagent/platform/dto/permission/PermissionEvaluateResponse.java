@@ -9,54 +9,51 @@ import java.util.List;
 @Data
 public class PermissionEvaluateResponse {
 
-    /**
-     * ALLOW
-     * REQUIRE_APPROVAL
-     * DENY
-     */
     private String decision;
 
     private List<String> reasons;
 
     public static PermissionEvaluateResponse allow() {
 
-        PermissionEvaluateResponse response =
+        PermissionEvaluateResponse result =
                 new PermissionEvaluateResponse();
 
-        response.setDecision("ALLOW");
-        response.setReasons(Collections.<String>emptyList());
+        result.setDecision("ALLOW");
+        result.setReasons(Collections.emptyList());
 
-        return response;
+        return result;
     }
 
-    public static PermissionEvaluateResponse deny(String reason) {
+    public static PermissionEvaluateResponse deny(
+            String reason) {
 
-        PermissionEvaluateResponse response =
+        PermissionEvaluateResponse result =
                 new PermissionEvaluateResponse();
 
-        response.setDecision("DENY");
+        result.setDecision("DENY");
 
-        List<String> reasons = new ArrayList<String>();
+        List<String> reasons =
+                new ArrayList<>();
+
         reasons.add(reason);
 
-        response.setReasons(reasons);
+        result.setReasons(reasons);
 
-        return response;
+        return result;
     }
 
     public static PermissionEvaluateResponse requireApproval(
-            String reason) {
+            List<String> reasons) {
 
-        PermissionEvaluateResponse response =
+        PermissionEvaluateResponse result =
                 new PermissionEvaluateResponse();
 
-        response.setDecision("REQUIRE_APPROVAL");
+        result.setDecision(
+                "REQUIRE_APPROVAL"
+        );
 
-        List<String> reasons = new ArrayList<String>();
-        reasons.add(reason);
+        result.setReasons(reasons);
 
-        response.setReasons(reasons);
-
-        return response;
+        return result;
     }
 }
