@@ -10,9 +10,10 @@ public class ToolVersionResponse {
 
     private String version;
 
-    /**
-     * 原始 yagent-tool.json
-     */
+    private String protocolVersion;
+
+    private String runtimeType;
+
     private JsonNode manifest;
 
     private Artifact artifact;
