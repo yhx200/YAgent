@@ -6,65 +6,30 @@
 
 <mapper namespace="com.yagent.platform.mapper.tool.ToolVersionMapper">
 
-    <resultMap id="BaseResultMap"
-               type="com.yagent.platform.domain.ToolVersionDO">
-
-        <id column="id"
-            property="id"/>
-
-        <result column="tool_id"
-                property="toolId"/>
-
-        <result column="version"
-                property="version"/>
-
-        <result column="manifest_json"
-                property="manifestJson"/>
-
-        <result column="bucket"
-                property="bucket"/>
-
-        <result column="object_key"
-                property="objectKey"/>
-
-        <result column="sha256"
-                property="sha256"/>
-
-        <result column="signature"
-                property="signature"/>
-
-        <result column="status"
-                property="status"/>
-
-        <result column="create_time"
-                property="createTime"/>
-
-        <result column="update_time"
-                property="updateTime"/>
-
-    </resultMap>
-
-
     <select id="selectByToolIdAndVersion"
-            resultMap="BaseResultMap">
+            resultType="com.yagent.platform.domain.tool.ToolVersionDO">
 
         SELECT
-        id,
-        tool_id,
-        version,
-        manifest_json,
-        bucket,
-        object_key,
-        sha256,
-        signature,
-        status,
-        create_time,
-        update_time
+        tv.id,
+        tv.tool_id AS toolId,
+        tv.version,
+        tv.protocol_version AS protocolVersion,
+        tv.runtime_type AS runtimeType,
+        tv.manifest_json AS manifestJson,
+        tv.package_object_key AS packageObjectKey,
+        tv.package_sha256 AS packageSha256,
+        tv.signature,
+        tv.status,
+        tv.create_time AS createTime
 
-        FROM ya_tool_version
+        FROM ya_tool_version tv
 
-        WHERE tool_id = #{toolId}
-        AND version = #{version}
+        INNER JOIN ya_tool t
+        ON t.tool_id = tv.tool_id
+
+        WHERE tv.tool_id = #{toolId}
+        AND tv.version = #{version}
+        AND t.status = 'ACTIVE'
 
         LIMIT 1
 
