@@ -1,57 +1,73 @@
-INSERT INTO ya_tool
-(
-    tool_id,
-    tool_name,
-    description,
-    status
-)
-VALUES
-    (
-        'com.yagent.weather',
-        'Demo Weather',
-        'YAgent Demo Weather Tool',
-        'ENABLED'
-    );
 INSERT INTO ya_capability
 (
     capability_code,
-    capability_name,
+    name,
     description,
+    category,
     keywords,
-    provider_type,
-    tool_id,
-    status
+    status,
+    create_time,
+    update_time
 )
 VALUES
     (
         'weather.forecast',
         '天气查询',
-        '查询城市天气和天气预报',
-        '天气,温度,天气预报,下雨,晴天,气温',
-        'TOOL',
+        '查询城市天气及天气预报',
+        'weather',
+        '天气,天气预报,温度,气温,晴天,下雨',
+        'ACTIVE',
+        NOW(),
+        NOW()
+    );
+INSERT INTO ya_tool
+(
+    tool_id,
+    name,
+    display_name,
+    description,
+    publisher_id,
+    status,
+    create_time,
+    update_time
+)
+VALUES
+    (
         'com.yagent.weather',
-        'ENABLED'
+        'weather',
+        '天气查询工具',
+        'Demo Weather Tool',
+        1,
+        'ACTIVE',
+        NOW(),
+        NOW()
     );
 INSERT INTO ya_tool_version
 (
     tool_id,
     version,
+    protocol_version,
+    runtime_type,
     manifest_json,
-    bucket,
-    object_key,
-    sha256,
+    package_object_key,
+    package_sha256,
     signature,
-    status
+    status,
+    create_time
 )
 VALUES
     (
         'com.yagent.weather',
         '1.0.0',
+        '1',
+        'NODEJS',
 
         '{
             "id":"com.yagent.weather",
             "name":"Demo Weather",
             "version":"1.0.0",
+            "protocolVersion":"1",
+            "runtimeType":"NODEJS",
             "entry":"dist/index.js",
             "tools":[
                 {
@@ -61,27 +77,47 @@ VALUES
             ]
         }',
 
-        'yagent-tools',
-
         'com.yagent.weather/1.0.0/package.ytool',
 
-        '这里换成真实SHA256',
+        '替换为你的真实SHA256',
 
         NULL,
 
-        'PUBLISHED'
+        'PUBLISHED',
+
+        NOW()
     );
-INSERT INTO ya_tool_installation
+INSERT INTO ya_tool_capability
+(
+    tool_id,
+    tool_version,
+    capability_code,
+    tool_name,
+    priority
+)
+VALUES
+    (
+        'com.yagent.weather',
+        '1.0.0',
+        'weather.forecast',
+        'weather.query',
+        100
+    );
+INSERT INTO ya_tenant_installation
 (
     tenant_id,
     tool_id,
     version,
-    status
+    status,
+    install_user_id,
+    install_time
 )
 VALUES
     (
         10001,
         'com.yagent.weather',
         '1.0.0',
-        'ENABLED'
+        'ACTIVE',
+        20001,
+        NOW()
     );
