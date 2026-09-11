@@ -9,6 +9,5 @@ public class CapabilitySearchRequest {
 
     private String query;
 
-    private Integer limit = 5;
-
+    private Integer limit;
 }
