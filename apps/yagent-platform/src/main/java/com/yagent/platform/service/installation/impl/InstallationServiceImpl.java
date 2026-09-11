@@ -1,21 +1,22 @@
 package com.yagent.platform.service.installation.impl;
 
-import com.yagent.platform.domain.ToolInstallationDO;
-import com.yagent.platform.domain.ToolVersionDO;
+import com.yagent.platform.domain.installation.TenantInstallationDO;
+import com.yagent.platform.domain.tool.ToolVersionDO;
 import com.yagent.platform.dto.installation.InstallationResolveRequest;
 import com.yagent.platform.dto.installation.InstallationResolveResponse;
 import com.yagent.platform.exception.BizException;
-import com.yagent.platform.mapper.tool.ToolInstallationMapper;
+import com.yagent.platform.mapper.installation.TenantInstallationMapper;
 import com.yagent.platform.mapper.tool.ToolVersionMapper;
 import com.yagent.platform.service.installation.InstallationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
-public class InstallationServiceImpl implements InstallationService {
+public class InstallationServiceImpl
+        implements InstallationService {
+
     @Autowired
-    private ToolInstallationMapper installationMapper;
+    private TenantInstallationMapper installationMapper;
 
     @Autowired
     private ToolVersionMapper toolVersionMapper;
@@ -29,20 +30,11 @@ public class InstallationServiceImpl implements InstallationService {
 
             throw new BizException(
                     "INVALID_ARGUMENT",
-                    "tenantId cannot be empty"
+                    "tenantId不能为空"
             );
         }
 
-        if (!StringUtils.hasText(
-                request.getToolId())) {
-
-            throw new BizException(
-                    "INVALID_ARGUMENT",
-                    "toolId cannot be empty"
-            );
-        }
-
-        ToolInstallationDO installation =
+        TenantInstallationDO installation =
                 installationMapper
                         .selectByTenantAndTool(
                                 request.getTenantId(),
@@ -53,23 +45,19 @@ public class InstallationServiceImpl implements InstallationService {
 
             throw new BizException(
                     "TOOL_NOT_INSTALLED",
-                    "Tool is not installed: "
-                            + request.getToolId()
+                    "租户未安装该Tool"
             );
         }
 
-        if (!"ENABLED".equals(
+        if (!"ACTIVE".equals(
                 installation.getStatus())) {
 
             throw new BizException(
-                    "TOOL_INSTALLATION_DISABLED",
-                    "Tool installation is disabled"
+                    "INSTALLATION_DISABLED",
+                    "Tool安装已停用"
             );
         }
 
-        /*
-         * 防止安装表指向了已经不存在/下架的版本。
-         */
         ToolVersionDO version =
                 toolVersionMapper
                         .selectByToolIdAndVersion(
@@ -77,20 +65,13 @@ public class InstallationServiceImpl implements InstallationService {
                                 installation.getVersion()
                         );
 
-        if (version == null) {
-
-            throw new BizException(
-                    "TOOL_VERSION_NOT_FOUND",
-                    "Installed tool version not found"
-            );
-        }
-
-        if (!"PUBLISHED".equals(
+        if (version == null
+                || !"PUBLISHED".equals(
                 version.getStatus())) {
 
             throw new BizException(
-                    "TOOL_VERSION_UNAVAILABLE",
-                    "Installed tool version is unavailable"
+                    "VERSION_UNAVAILABLE",
+                    "安装版本不可用"
             );
         }
 
