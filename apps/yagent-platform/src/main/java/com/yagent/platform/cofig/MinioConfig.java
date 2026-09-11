@@ -1,4 +1,4 @@
-package com.yagent.platform.cofig;
+package com.yagent.platform.config;
 
 import io.minio.MinioClient;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +16,6 @@ public class MinioConfig {
 
     @Value("${yagent.minio.secret-key}")
     private String secretKey;
-
 
     @Bean
     public MinioClient minioClient() {
