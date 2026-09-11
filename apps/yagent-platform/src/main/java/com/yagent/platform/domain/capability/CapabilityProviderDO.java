@@ -1,4 +1,4 @@
-package com.yagent.platform.domain;
+package com.yagent.platform.domain.capability;
 
 import lombok.Data;
 
@@ -19,6 +19,9 @@ public class CapabilityProviderDO {
 
     private String toolVersion;
 
+    /**
+     * weather.query
+     */
     private String toolName;
 
     private Integer priority;
