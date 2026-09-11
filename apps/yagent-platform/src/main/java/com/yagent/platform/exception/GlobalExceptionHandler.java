@@ -1,6 +1,5 @@
 package com.yagent.platform.exception;
 
-import com.yagent.platform.dto.exception.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,19 +24,18 @@ public class GlobalExceptionHandler {
                 );
     }
 
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(
             Exception e) {
 
-        log.error("System exception", e);
+        log.error("System error", e);
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(
                         new ErrorResponse(
                                 "INTERNAL_ERROR",
-                                "Internal server error"
+                                e.getMessage()
                         )
                 );
     }
