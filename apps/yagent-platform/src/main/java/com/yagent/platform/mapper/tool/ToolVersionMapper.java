@@ -1,10 +1,8 @@
 package com.yagent.platform.mapper.tool;
 
-import com.yagent.platform.domain.ToolVersionDO;
-import org.apache.ibatis.annotations.Mapper;
+import com.yagent.platform.domain.tool.ToolVersionDO;
 import org.apache.ibatis.annotations.Param;
 
-@Mapper
 public interface ToolVersionMapper {
 
     ToolVersionDO selectByToolIdAndVersion(
