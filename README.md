@@ -1,570 +1,290 @@
-# YAgent
-你的这个 Yagent，本质上不是普通聊天 Agent，也不只是多 Agent 协作，而是一个：
+# YAgent Full Starter
 
-具备“发现工具 → 下载工具 → 安装/装载工具 → 调用工具 → 必要时卸载工具”能力的动态 Agent Runtime。
+这是按当前 YAgent 方案落地的一套 **可运行 MVP 工程**，目标是先跑通：
 
-所以如果按你描述的目标来选框架，我会优先考虑 DeepSeek Harness，而不是 AutoGen。原因是它的架构和你的需求非常贴合：它本身就是“Everything is a Plugin”，工具注册、Agent Loop、Session、模型适配器等都是插件，而且已经有运行时动态扩展、检查已加载插件、定义/运行动态包、撤销动态包的机制。
-
-你这个 Yagent 可以设计成下面这样：
-
-用户：
-“帮我把这个 Excel 转成 PDF”
-
-        ↓
-
-Yagent 理解用户意图
-        ↓
-当前工具集合中有没有？
-        │
-   ┌────┴────┐
-   │         │
-   有        没有
-   │         │
-直接调用     ↓
-         Tool Dictionary
-             ↓
-      搜索 "excel to pdf"
-             ↓
-      返回候选工具
-             ↓
-       Tool Installer
-             ↓
-       下载工具包
-             ↓
-     校验 / Sandbox
-             ↓
-       Tool Loader
-             ↓
-   注册进 Tool Registry
-             ↓
-       Agent 再次推理
-             ↓
-         调用工具
-             ↓
-          返回结果
-
-这里最关键的一点是：
-
-“字典也是工具”这个设计是对的。
-
-初始 Agent 不需要拥有 500 个工具，只需要少量 bootstrap 工具，例如：
-
-dictionary.search
-tool.describe
-tool.install
-tool.load
-tool.unload
-
-例如初始工具只有：
-
-{
-  "name": "dictionary.search",
-  "description": "根据用户需求搜索可用工具"
-}
-
-用户说：
-
-帮我查一下上海明天的天气
-
-LLM发现当前没有天气工具，于是：
-
-dictionary.search(
-    query = "查询城市天气预报"
-)
-
-字典返回：
-
-[
-  {
-    "toolId": "weather-cn",
-    "name": "中国天气查询",
-    "version": "1.3.2",
-    "description": "查询中国城市实时天气和天气预报",
-    "download": "...",
-    "permissions": [
-      "network"
-    ]
-  }
-]
-
-然后：
-
-tool.install("weather-cn")
-
-再：
-
-tool.load("weather-cn")
-
-Tool Registry 从：
-
-dictionary.search
-tool.install
-tool.load
-
-动态变成：
-
-dictionary.search
-tool.install
-tool.load
-weather.current
-weather.forecast
-
-然后模型下一轮就可以：
-
-weather.forecast(city="上海")
-
-这跟 DeepSeek Harness 的工具模型很契合：它本身就有动态 Tool Registry，工具插件负责注册 schema 和 executor；执行还会经过 pre-execute、execute、post-execute 等管道。
-
-为什么我不首先推荐 AutoGen
-
-AutoGen 更适合：
-
-Planner Agent
-    ↓
-Developer Agent
-    ↓
-Tester Agent
-    ↓
-Reviewer Agent
-
-即：
-
-多个 Agent 如何通信和分工。
-
-而你的核心问题不是“几个 Agent 怎么协作”，而是：
-
-Agent 当前不会某件事
-        ↓
-自己寻找能力
-        ↓
-获取能力
-        ↓
-装载能力
-        ↓
-获得新 Tool Schema
-        ↓
-继续工作
-
-这实际上是一个 动态能力系统 / Plugin Runtime。
-
-所以你的核心抽象应该是：
-
-Model
-Agent Loop
-Tool Registry
-Plugin Manager
-Tool Dictionary
-Installer
-Sandbox
-Permission
-Session
-
-这正是 Harness 类框架的方向。DeepSeek Harness 的 Tool Registry 本身就是动态注册式设计，而模型看到的工具 schema 由 Registry 生成。
-
-甚至它现在已经有一套很接近你想法的 extensions 子系统：
-
-Agent 可以检查自己运行环境里的插件和服务，也可以定义、运行和撤销动态包。
-
-这其实已经开始接近“Agent 修改自己的运行能力”了。
-
-不过，我建议你不要直接把 Yagent = DeepSeek Harness 二次开发。
-
-更好的架构是：
-
-                Yagent
-                  │
-        ┌─────────┴─────────┐
-        │                   │
-     Agent Core        Tool Platform
-        │                   │
-        │              Tool Registry
-        │                   │
-        │              Tool Store
-        │                   │
-        │              Tool Package
-        │                   │
-        └──── Tool API ─────┘
-
-Yagent 自己定义一套稳定的工具协议。
-
-例如：
-
-{
-  "id": "com.yagent.weather",
-  "name": "weather",
-  "version": "1.2.0",
-
-  "tools": [
-    {
-      "name": "weather.query",
-      "description": "查询天气",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "city": {
-            "type": "string"
-          }
-        }
-      }
-    }
-  ],
-
-  "runtime": {
-    "type": "node",
-    "entry": "index.js"
-  },
-
-  "permissions": [
-    "network"
-  ]
-}
-
-以后你的 Tool Store 中所有工具都遵循这个协议。
-
-这样底层 Agent Runtime 可以换：
-
-DeepSeek Harness
-         ↓
-Yagent Tool Protocol
-         ↓
-Yagent Tool Store
-
-以后哪怕不用 DeepSeek Harness，也可以变成：
-
-LangGraph
-         ↓
-Yagent Tool Protocol
-         ↓
-Yagent Tool Store
-
-甚至：
-
-自己实现 Agent Loop
-         ↓
-Yagent Tool Protocol
-         ↓
-Yagent Tool Store
-
-这样不会被一个框架锁死。
-
-我认为 Yagent 最重要的其实不是 Agent，而是 Tool Platform。
-
-你可以把整个项目拆成 6 个核心模块：
-
-Yagent
-│
-├── 1. Agent Runtime
-│      ├── Model
-│      ├── Agent Loop
-│      ├── Context
-│      └── Session
-│
-├── 2. Tool Registry
-│      ├── register()
-│      ├── unregister()
-│      ├── list()
-│      └── invoke()
-│
-├── 3. Tool Dictionary
-│      ├── semanticSearch()
-│      ├── keywordSearch()
-│      ├── categorySearch()
-│      └── recommend()
-│
-├── 4. Tool Store
-│      ├── package
-│      ├── version
-│      ├── metadata
-│      ├── dependency
-│      └── permissions
-│
-├── 5. Tool Manager
-│      ├── download()
-│      ├── verify()
-│      ├── install()
-│      ├── load()
-│      ├── unload()
-│      └── upgrade()
-│
-└── 6. Sandbox
-       ├── filesystem
-       ├── network
-       ├── command
-       ├── memory
-       └── timeout
-
-这里面真正构成你护城河的是：
-
-Tool Dictionary
-+
-Tool Store
-+
-Tool Protocol
-+
-Tool Manager
-
-而不是 LLM。
-
-还有一个设计我强烈建议你采用：
-
-不要把全部工具 description 塞进模型上下文。
-
-比如以后你平台有：
-
-10000 个工具
-
-不能：
-
-LLM
- ↓
-10000 个 tool schemas
-
-上下文会直接爆炸。
-
-应该是：
-
-LLM 初始只有 5~10 个系统工具
-
-dictionary.search
-dictionary.describe
-tool.install
-tool.load
-tool.remove
-
-然后采用：
-
-用户语言
- ↓
-LLM
- ↓
-dictionary.search
- ↓
-向量搜索 + 关键词搜索
- ↓
-Top 5 tools
- ↓
-tool.describe
- ↓
-选择 Tool
- ↓
-安装
- ↓
-Registry
- ↓
-模型获得新 Tool Schema
-
-也就是说：
-
-Tool Dictionary 本身就是 Tool RAG。
-
-例如：
-
-用户：
-“帮我分析一下这个 jar 为什么启动失败。”
-
-Dictionary 搜：
-
-Java
-JAR
-Spring Boot
-log
-Maven
-diagnostic
-
-最终得到：
-
-java-log-analyzer
-maven-runner
-jar-inspector
-
-装载后：
-
-Yagent
- ├── dictionary.search
- ├── tool.install
- ├── tool.load
- ├── java.inspectJar
- ├── java.analyzeLog
- └── maven.run
-
-Agent 能力就动态增长了。
-
-还有一个非常关键的问题：
-
-一定不能让 Agent 随便下载东西直接执行
-
-否则你的架构很快会变成：
-
+```text
 用户
- ↓
-Prompt Injection
- ↓
-Agent
- ↓
-下载恶意工具
- ↓
-执行
- ↓
-服务器没了
+  -> YAgent Runtime
+  -> capability.search
+  -> YAgent Platform
+  -> capability.acquire
+  -> Tool Materializer
+  -> Session-scoped Tool Registry
+  -> Tool Proxy
+  -> Node Runner
+  -> demo-weather Tool
+  -> Audit
+  -> 最终回答
+```
 
-所以必须：
+## 1. 最重要的安全边界
 
-Tool Store
-   ↓
-签名
-   ↓
-SHA256
-   ↓
-Publisher
-   ↓
-Permission Manifest
-   ↓
-Sandbox
-   ↓
-Tool Runtime
+Runtime 主进程 **不会 import 下载下来的第三方 Tool 代码**。Runtime 只注册 Tool Schema + Proxy。真正 Tool 代码由 `runtimes/node-runner` 执行。
 
-例如 Tool 声明：
+开发版 Node Runner 使用“独立 Runner 容器 + 每次调用独立子进程”。生产环境应继续升级成一次性 Tool Container / Job，并加网络 Egress Proxy、Seccomp、资源限制等。
 
+## 2. 工程结构
+
+```text
+yagent/
+├── apps/
+│   ├── yagent-platform/       # Java 21 + Spring Boot + MyBatis + MySQL
+│   ├── yagent-runtime/        # Node 22 + TypeScript Agent Runtime
+│   ├── yagent-gateway/        # Gateway 骨架（M1 暂不参与运行）
+│   └── yagent-web/            # UI 占位（M1 不做）
+├── packages/
+│   ├── yagent-tool-protocol/
+│   ├── yagent-runtime-core/
+│   ├── yagent-runtime-adapter-deepseek/
+│   ├── yagent-tool-sdk-node/
+│   └── yagent-common/
+├── runtimes/
+│   └── node-runner/
+├── tools/
+│   └── demo-weather/
+├── infra/
+│   ├── docker-compose.yml
+│   └── sql/001_schema_and_seed.sql
+├── runtime-data/
+│   └── tool-store/com.yagent.weather/1.0.0/package.ytool
+├── docs/
+└── scripts/
+```
+
+## 3. 环境
+
+建议：
+
+- Node.js 22+
+- pnpm 10+
+- Java 21
+- Docker Desktop / Docker Engine
+
+Windows CMD 安装 pnpm：
+
+```bat
+npm install -g pnpm
+```
+
+如果安装成功但命令找不到，执行：
+
+```bat
+npm config get prefix
+```
+
+把输出目录加入 Windows 用户 `Path`。
+
+## 4. 第一次启动（最简单：Docker）
+
+### 4.1 复制环境变量
+
+Windows：
+
+```bat
+copy .env.example .env
+```
+
+Linux / WSL：
+
+```bash
+cp .env.example .env
+```
+
+默认 `YAGENT_LLM_MODE=mock`，因此 **不需要 DeepSeek Key 也能跑通完整动态 Tool 链路**。
+
+### 4.2 启动
+
+```bash
+docker compose -f infra/docker-compose.yml --env-file .env up --build
+```
+
+第一次会构建 Java Platform、Runtime、Node Runner。
+
+### 4.3 健康检查
+
+```text
+Platform: http://localhost:8080/actuator/health
+Runtime : http://localhost:3000/runtime/health
+Runner  : http://localhost:8090/health
+```
+
+## 5. 第一个完整测试
+
+POST：
+
+```text
+http://localhost:3000/runtime/chat
+```
+
+Body：
+
+```json
 {
-  "permissions": {
-    "network": [
-      "api.weather.com"
-    ],
-    "filesystem": {
-      "read": [
-        "/workspace"
-      ],
-      "write": [
-        "/workspace/output"
-      ]
-    },
-    "shell": false
+  "tenantId": 10001,
+  "userId": 20001,
+  "sessionId": "S001",
+  "message": "帮我查询上海天气"
+}
+```
+
+Mock Adapter 会自动演示：
+
+```text
+1. capability_search
+2. 找到 weather.current
+3. capability_acquire
+4. Runtime 下载并校验 com.yagent.weather@1.0.0
+5. 注册 weather_query Proxy（注意：没有 import Tool）
+6. weather_query -> node-runner
+7. node-runner 子进程加载 Tool
+8. 返回 上海 26°C 晴
+9. 写 ya_audit_event
+```
+
+预期响应类似：
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": "S001",
+    "reply": "查询完成：上海当前 26°C，晴。"
   }
 }
+```
 
-然后 Yagent 决定：
+## 6. 切到真实 DeepSeek
 
-允许安装 ≠ 允许所有权限
+编辑 `.env`：
 
-允许安装
+```env
+YAGENT_LLM_MODE=deepseek
+DEEPSEEK_API_KEY=你的Key
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
+```
+
+然后重启 Runtime。
+
+设计上 Runtime 只依赖 `AgentRuntimeAdapter`，以后接 DeepSeek Harness 时，只替换 `packages/yagent-runtime-adapter-deepseek` 这一层即可，不需要重写 Capability / Tool / Permission / Sandbox。
+
+## 7. Platform 数据库 8 张核心表
+
+本项目已经包含：
+
+- `ya_capability`
+- `ya_tool`
+- `ya_tool_version`
+- `ya_tool_capability`
+- `ya_tool_permission`
+- `ya_tenant_installation`
+- `ya_tenant_tool_policy`
+- `ya_audit_event`
+
+并带 `weather.current -> com.yagent.weather@1.0.0 -> weather.query` 测试数据。
+
+## 8. Platform 内部 API
+
+主要接口：
+
+```text
+POST /inner/v1/capabilities/search
+POST /inner/v1/installations/resolve
+GET  /inner/v1/tools/{toolId}/versions/{version}
+POST /inner/v1/permissions/evaluate
+POST /inner/v1/tool-packages/download-ticket
+GET  /inner/v1/tool-packages/file
+POST /inner/v1/audit-events
+```
+
+Runtime **不直接访问 MySQL**。
+
+## 9. 本地非 Docker 开发
+
+### Platform
+
+需要本机 Maven 3.9+、Java 21：
+
+```bash
+cd apps/yagent-platform
+mvn spring-boot:run
+```
+
+### Node workspace
+
+```bash
+pnpm install
+pnpm build
+```
+
+Runner：
+
+```bash
+pnpm dev:runner
+```
+
+Runtime：
+
+```bash
+pnpm dev:runtime
+```
+
+本地跑 Runtime 时把 `.env` 中地址改为：
+
+```env
+YAGENT_PLATFORM_BASE_URL=http://localhost:8080
+YAGENT_RUNNER_BASE_URL=http://localhost:8090
+YAGENT_TOOL_CACHE_ROOT=./runtime-data/tool-cache
+YAGENT_RUNNER_TOOL_ROOT=./runtime-data/tool-cache
+```
+
+## 10. 重新打 demo-weather 包
+
+修改 `tools/demo-weather` 后：
+
+```bash
+pnpm install
+pnpm --filter @yagent/demo-weather build
+pnpm package:weather
+```
+
+脚本会生成：
+
+```text
+runtime-data/tool-store/com.yagent.weather/1.0.0/package.ytool
+```
+
+**注意：重新打包后 SHA256 会变化，需要同步更新数据库 `ya_tool_version.package_sha256`。**
+
+## 11. 生产环境还必须继续补的安全能力
+
+本 Starter 是架构闭环，不等于完整生产安全边界。生产必须继续加入：
+
+- 一次一容器/Job 的 Tool 执行
+- 容器 CPU / Memory / PIDs / timeout 限制
+- rootless / seccomp / AppArmor
+- Tool package 签名验签
+- Publisher 信任链
+- 上传时依赖扫描、恶意代码扫描
+- Egress Proxy 域名白名单
+- 用户审批 `REQUIRE_APPROVAL`
+- AuditRedactor（敏感字段脱敏）
+- Gateway -> Runtime 服务身份认证
+- Redis Session / Runtime sticky routing
+- Tool Package 从本地文件切换到 MinIO presigned URL
+
+## 12. 建议开发顺序
+
+```text
+M1 动态能力闭环（本项目已实现）
   ↓
-检查权限
+M2 强 Sandbox
   ↓
-用户 / 策略审批
+M3 Permission / Approval 完善
   ↓
-Sandbox 执行
-
-DeepSeek Harness 本身也把 Sandbox、Approval Policy、Tools execution pipeline 放在基础架构里，这也是为什么它比单纯的 AutoGen 更适合这个项目。
-
-如果按照你现在的技术背景来做
-
-你主要是：
-
-Java
-Spring Boot
-MySQL
-Spring Cloud Alibaba
-Nacos
-
-但 Yagent Core 我反而不建议全用 Java。
-
-可以考虑：
-
-                  Yagent
-                    │
-      ┌─────────────┴─────────────┐
-      │                           │
- Agent Runtime                Platform
- TypeScript                   Java
- DeepSeek Harness             Spring Boot
-      │                           │
-      │                       MySQL
-      │                       Redis
-      │                       Nacos
-      │
-      └──────── HTTP/gRPC ────────┘
-
-即：
-
-Agent Runtime：TypeScript
-
-DeepSeek Harness
-Tool Loader
-Sandbox
-Agent Loop
-
-平台后端：Java
-
-账号
-租户
-Tool Store
-权限
-计费
-审计
-版本
-发布
-
-你现有的 Spring Boot 技术栈完全可以继续使用。
-
-所以，如果现在让我帮你拍板：
-
-方案	推荐程度
-DeepSeek Harness	⭐⭐⭐⭐⭐
-LangGraph	⭐⭐⭐⭐
-AutoGen	⭐⭐⭐
-CrewAI	⭐⭐
-从零实现	前期 ⭐⭐，后期可考虑
-
-我的建议是：
-
-Yagent V1：DeepSeek Harness + 自己设计 Yagent Tool Protocol + Tool Dictionary + Tool Store。
-
-而不是：
-
-AutoGen + 一堆动态 Tool。
-
-因为 Yagent 的灵魂并不是 Multi-Agent，而是：
-
-Self-extensible Agent —— 智能体能够主动发现并装载新的能力。
-
-而 DeepSeek Harness 现在甚至已经支持 Code Runtime，并把运行模型生成代码的执行环境抽象为可替换 provider，这对以后实现 Python/Node/WASM 等不同 Tool Runtime 也非常有用。
-
-不过有一点必须考虑：截至 2026 年 9 月，DeepSeek Harness 官方仍然明确标记为 Developer Preview，API 可能发生 breaking changes。
-
-所以我会把它当成：
-
-Yagent
-   ↓
-Yagent Runtime Adapter
-   ↓
-DeepSeek Harness
-
-中间一定隔一层自己的 Adapter。
-
-这样以后换 Harness 不会把整个 Yagent 推倒重写。
-
-最终架构我会定成：
-
-           Yagent
-              │
-        Agent Runtime
-              │
-     ┌────────┴─────────┐
-     │                  │
-Dictionary Tool     Tool Manager
-     │                  │
-Tool Search          install
-     │               load
-Vector DB            unload
-     │               upgrade
-     └────────┬─────────┘
-              │
-        Tool Registry
-              │
-        Tool Sandbox
-              │
-         Tool Runtime
-        /     |      \
-    Node    Python    WASM
-
-这个架构后面甚至可以发展成一个 “Agent App Store”：开发者上传 Tool，Yagent 根据自然语言自动发现、安装和使用能力。你这个方向从产品形态上是成立的，而且 DeepSeek Harness 的插件和动态运行时思想正好能给你省掉大量底层工作。
+M4 Gateway / Tenant / Trace
+  ↓
+M5 MCP Provider
+  ↓
+M6 Marketplace / Publisher Center
+```
