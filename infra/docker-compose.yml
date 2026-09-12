@@ -1,22 +1,83 @@
 services:
-
   mysql:
     image: mysql:8.4
-    ports:
-      - "3306:3306"
-    env_file:
-      - ../.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports: ["3306:3306"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD","mysqladmin","ping","-h","localhost","-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 
   redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+    image: redis:7-alpine
+    ports: ["6379:6379"]
 
   minio:
     image: minio/minio
     command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    env_file:
-      - ../.env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports: ["9000:9000","9001:9001"]
+    volumes: ["minio-data:/data"]
+
+  yagent-platform:
+    build:
+      context: ../apps/yagent-platform
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      YAGENT_PLATFORM_INTERNAL_BASE_URL: http://yagent-platform:8080
+      YAGENT_TOOL_STORAGE_ROOT: /data/tool-store
+    ports: ["8080:8080"]
+    volumes:
+      - ../runtime-data/tool-store:/data/tool-store:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  node-runner:
+    build:
+      context: ..
+      dockerfile: runtimes/node-runner/Dockerfile
+    environment:
+      PORT: 8090
+      YAGENT_RUNNER_TOOL_ROOT: /data/tool-cache
+    ports: ["8090:8090"]
+    volumes:
+      - ../runtime-data/tool-cache:/data/tool-cache:ro
+
+  yagent-runtime:
+    build:
+      context: ..
+      dockerfile: apps/yagent-runtime/Dockerfile
+    environment:
+      PORT: 3000
+      YAGENT_LLM_MODE: ${YAGENT_LLM_MODE}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL}
+      YAGENT_PLATFORM_BASE_URL: http://yagent-platform:8080
+      YAGENT_RUNNER_BASE_URL: http://node-runner:8090
+      YAGENT_TOOL_CACHE_ROOT: /data/tool-cache
+    ports: ["3000:3000"]
+    volumes:
+      - ../runtime-data/tool-cache:/data/tool-cache
+    depends_on:
+      - yagent-platform
+      - node-runner
+
+volumes:
+  mysql-data:
+  minio-data:
