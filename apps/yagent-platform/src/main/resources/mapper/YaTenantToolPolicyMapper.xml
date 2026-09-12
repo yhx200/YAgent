@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yagent.platform.mapper.YaTenantToolPolicyMapper"><select id="selectAccessPolicy" resultType="com.yagent.platform.domain.YaTenantToolPolicy">SELECT * FROM ya_tenant_tool_policy WHERE tenant_id=#{tenantId} AND tool_id=#{toolId} AND policy_type='TOOL_ACCESS' AND status='ACTIVE' LIMIT 1</select></mapper>
