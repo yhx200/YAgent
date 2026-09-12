@@ -1,290 +1,36 @@
-# YAgent Full Starter
-
-这是按当前 YAgent 方案落地的一套 **可运行 MVP 工程**，目标是先跑通：
+# YAgent
+当前 AI Agent 的发展方向，正在从“人操作工具”逐步走向“人负责目标与决策，智能体负责理解、规划与执行”。
 
-```text
-用户
-  -> YAgent Runtime
-  -> capability.search
-  -> YAgent Platform
-  -> capability.acquire
-  -> Tool Materializer
-  -> Session-scoped Tool Registry
-  -> Tool Proxy
-  -> Node Runner
-  -> demo-weather Tool
-  -> Audit
-  -> 最终回答
-```
+过去，用户需要明确知道自己要调用什么能力、使用什么工具，并亲自完成大量操作；而在 Agent 模式下，人更应该聚焦于最终目标、业务判断和关键决策，把具体的执行过程交给智能体完成。随着智能体能力不断增强，人在执行链路中的介入会越来越少，未来很多任务的理想形态将是：人只需要提出目标、约束和期望结果，Agent 自动拆解任务、选择能力、调用工具，并持续完成整个执行过程。
 
-## 1. 最重要的安全边界
+Yagent 希望实现的正是这样的目标。
 
-Runtime 主进程 **不会 import 下载下来的第三方 Tool 代码**。Runtime 只注册 Tool Schema + Proxy。真正 Tool 代码由 `runtimes/node-runner` 执行。
+因此，在 Yagent 的设计中，我们并不希望让用户提前决定“这个智能体应该挂载哪些工具”，也不希望用户为了完成一个任务，必须先理解底层有哪些 Tool、API 或 Capability。
 
-开发版 Node Runner 使用“独立 Runner 容器 + 每次调用独立子进程”。生产环境应继续升级成一次性 Tool Container / Job，并加网络 Egress Proxy、Seccomp、资源限制等。
+相反，Yagent 更强调由智能体根据当前任务，自主判断“需要什么能力”，再进一步决定“应该调用什么工具”。
 
-## 2. 工程结构
+用户负责回答的是：
 
-```text
-yagent/
-├── apps/
-│   ├── yagent-platform/       # Java 21 + Spring Boot + MyBatis + MySQL
-│   ├── yagent-runtime/        # Node 22 + TypeScript Agent Runtime
-│   ├── yagent-gateway/        # Gateway 骨架（M1 暂不参与运行）
-│   └── yagent-web/            # UI 占位（M1 不做）
-├── packages/
-│   ├── yagent-tool-protocol/
-│   ├── yagent-runtime-core/
-│   ├── yagent-runtime-adapter-deepseek/
-│   ├── yagent-tool-sdk-node/
-│   └── yagent-common/
-├── runtimes/
-│   └── node-runner/
-├── tools/
-│   └── demo-weather/
-├── infra/
-│   ├── docker-compose.yml
-│   └── sql/001_schema_and_seed.sql
-├── runtime-data/
-│   └── tool-store/com.yagent.weather/1.0.0/package.ytool
-├── docs/
-└── scripts/
-```
-
-## 3. 环境
-
-建议：
-
-- Node.js 22+
-- pnpm 10+
-- Java 21
-- Docker Desktop / Docker Engine
-
-Windows CMD 安装 pnpm：
-
-```bat
-npm install -g pnpm
-```
-
-如果安装成功但命令找不到，执行：
-
-```bat
-npm config get prefix
-```
-
-把输出目录加入 Windows 用户 `Path`。
+**我要完成什么。**
 
-## 4. 第一次启动（最简单：Docker）
-
-### 4.1 复制环境变量
-
-Windows：
-
-```bat
-copy .env.example .env
-```
-
-Linux / WSL：
+而 Yagent 负责回答的是：
 
-```bash
-cp .env.example .env
-```
+**为了完成这个目标，我现在需要什么能力、应该选择哪个工具，以及如何把这些工具组合起来完成任务。**
 
-默认 `YAGENT_LLM_MODE=mock`，因此 **不需要 DeepSeek Key 也能跑通完整动态 Tool 链路**。
-
-### 4.2 启动
-
-```bash
-docker compose -f infra/docker-compose.yml --env-file .env up --build
-```
-
-第一次会构建 Java Platform、Runtime、Node Runner。
-
-### 4.3 健康检查
+这意味着，工具不再是智能体启动前由人固定配置好的能力集合，而可以成为智能体在运行过程中动态发现、选择和调用的资源。
 
-```text
-Platform: http://localhost:8080/actuator/health
-Runtime : http://localhost:3000/runtime/health
-Runner  : http://localhost:8090/health
-```
+当任务发生变化时，Agent 可以重新判断当前需要的能力；当系统增加新的工具时，也不需要用户重新理解和配置整个智能体，而是由 Yagent 根据工具描述、能力定义、上下文和任务目标，自动选择更合适的执行方式。
 
-## 5. 第一个完整测试
+从这个角度来看，Yagent 希望逐步实现一种新的 Agent 使用方式：
 
-POST：
+**人定义目标，Agent 理解目标；
+人做关键决策，Agent负责具体执行；
+人不需要寻找工具，Agent主动寻找并调用工具。**
 
-```text
-http://localhost:3000/runtime/chat
-```
+最终，Yagent 想做的不是一个“让用户配置很多工具的 Agent 平台”，而是一个能够自主发现能力、选择工具、规划路径并完成任务的智能体运行平台。
 
-Body：
+随着能力体系和工具生态不断丰富，用户需要介入执行过程的地方会越来越少，而 Yagent 则承担越来越多的理解、规划、工具选择与执行工作。
 
-```json
-{
-  "tenantId": 10001,
-  "userId": 20001,
-  "sessionId": "S001",
-  "message": "帮我查询上海天气"
-}
-```
+这也是 Yagent 的核心设计理念之一：
 
-Mock Adapter 会自动演示：
-
-```text
-1. capability_search
-2. 找到 weather.current
-3. capability_acquire
-4. Runtime 下载并校验 com.yagent.weather@1.0.0
-5. 注册 weather_query Proxy（注意：没有 import Tool）
-6. weather_query -> node-runner
-7. node-runner 子进程加载 Tool
-8. 返回 上海 26°C 晴
-9. 写 ya_audit_event
-```
-
-预期响应类似：
-
-```json
-{
-  "success": true,
-  "data": {
-    "sessionId": "S001",
-    "reply": "查询完成：上海当前 26°C，晴。"
-  }
-}
-```
-
-## 6. 切到真实 DeepSeek
-
-编辑 `.env`：
-
-```env
-YAGENT_LLM_MODE=deepseek
-DEEPSEEK_API_KEY=你的Key
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-chat
-```
-
-然后重启 Runtime。
-
-设计上 Runtime 只依赖 `AgentRuntimeAdapter`，以后接 DeepSeek Harness 时，只替换 `packages/yagent-runtime-adapter-deepseek` 这一层即可，不需要重写 Capability / Tool / Permission / Sandbox。
-
-## 7. Platform 数据库 8 张核心表
-
-本项目已经包含：
-
-- `ya_capability`
-- `ya_tool`
-- `ya_tool_version`
-- `ya_tool_capability`
-- `ya_tool_permission`
-- `ya_tenant_installation`
-- `ya_tenant_tool_policy`
-- `ya_audit_event`
-
-并带 `weather.current -> com.yagent.weather@1.0.0 -> weather.query` 测试数据。
-
-## 8. Platform 内部 API
-
-主要接口：
-
-```text
-POST /inner/v1/capabilities/search
-POST /inner/v1/installations/resolve
-GET  /inner/v1/tools/{toolId}/versions/{version}
-POST /inner/v1/permissions/evaluate
-POST /inner/v1/tool-packages/download-ticket
-GET  /inner/v1/tool-packages/file
-POST /inner/v1/audit-events
-```
-
-Runtime **不直接访问 MySQL**。
-
-## 9. 本地非 Docker 开发
-
-### Platform
-
-需要本机 Maven 3.9+、Java 21：
-
-```bash
-cd apps/yagent-platform
-mvn spring-boot:run
-```
-
-### Node workspace
-
-```bash
-pnpm install
-pnpm build
-```
-
-Runner：
-
-```bash
-pnpm dev:runner
-```
-
-Runtime：
-
-```bash
-pnpm dev:runtime
-```
-
-本地跑 Runtime 时把 `.env` 中地址改为：
-
-```env
-YAGENT_PLATFORM_BASE_URL=http://localhost:8080
-YAGENT_RUNNER_BASE_URL=http://localhost:8090
-YAGENT_TOOL_CACHE_ROOT=./runtime-data/tool-cache
-YAGENT_RUNNER_TOOL_ROOT=./runtime-data/tool-cache
-```
-
-## 10. 重新打 demo-weather 包
-
-修改 `tools/demo-weather` 后：
-
-```bash
-pnpm install
-pnpm --filter @yagent/demo-weather build
-pnpm package:weather
-```
-
-脚本会生成：
-
-```text
-runtime-data/tool-store/com.yagent.weather/1.0.0/package.ytool
-```
-
-**注意：重新打包后 SHA256 会变化，需要同步更新数据库 `ya_tool_version.package_sha256`。**
-
-## 11. 生产环境还必须继续补的安全能力
-
-本 Starter 是架构闭环，不等于完整生产安全边界。生产必须继续加入：
-
-- 一次一容器/Job 的 Tool 执行
-- 容器 CPU / Memory / PIDs / timeout 限制
-- rootless / seccomp / AppArmor
-- Tool package 签名验签
-- Publisher 信任链
-- 上传时依赖扫描、恶意代码扫描
-- Egress Proxy 域名白名单
-- 用户审批 `REQUIRE_APPROVAL`
-- AuditRedactor（敏感字段脱敏）
-- Gateway -> Runtime 服务身份认证
-- Redis Session / Runtime sticky routing
-- Tool Package 从本地文件切换到 MinIO presigned URL
-
-## 12. 建议开发顺序
-
-```text
-M1 动态能力闭环（本项目已实现）
-  ↓
-M2 强 Sandbox
-  ↓
-M3 Permission / Approval 完善
-  ↓
-M4 Gateway / Tenant / Trace
-  ↓
-M5 MCP Provider
-  ↓
-M6 Marketplace / Publisher Center
-```
+**不是让人告诉 Agent 应该使用什么工具，而是让人告诉 Agent 想要什么结果。**
