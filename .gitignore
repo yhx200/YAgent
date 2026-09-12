@@ -1,15 +1,10 @@
 .idea/
 .vscode/
-
 node_modules/
 dist/
 target/
-
 .env
 *.log
-
-runtime-data/
-tool-cache/
-workspace/
-
+runtime-data/tool-cache/
+runtime-data/workspace/
 .DS_Store
