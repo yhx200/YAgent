@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "1.0",
+  "id": "com.yagent.weather",
+  "version": "1.0.0",
+  "name": "weather",
+  "displayName": "天气查询",
+  "description": "YAgent 演示天气工具",
+  "publisher": {
+    "id": "yagent-official",
+    "name": "YAgent"
+  },
+  "runtime": {
+    "type": "node",
+    "entry": "dist/index.js"
+  },
+  "capabilities": [
+    {
+      "code": "weather.current",
+      "tool": "weather.query"
+    }
+  ],
+  "tools": [
+    {
+      "name": "weather.query",
+      "description": "查询指定城市当前天气",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string",
+            "description": "城市名称"
+          }
+        },
+        "required": [
+          "city"
+        ],
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object"
+      }
+    }
+  ],
+  "permissions": {
+    "network": {
+      "enabled": false,
+      "allow": []
+    },
+    "filesystem": {
+      "read": [],
+      "write": []
+    },
+    "shell": false
+  },
+  "limits": {
+    "timeoutMs": 5000,
+    "memoryMb": 128
+  }
+}
