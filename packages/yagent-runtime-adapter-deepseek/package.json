@@ -1,0 +1,10 @@
+{
+  "name": "@yagent/runtime-adapter-deepseek",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {"build":"tsc -p tsconfig.json","typecheck":"tsc -p tsconfig.json --noEmit"},
+  "dependencies": {"@yagent/runtime-core":"workspace:*","openai":"^5.19.1"},
+  "devDependencies": {"typescript":"^5.9.2"}
+}
