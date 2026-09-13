@@ -10,6 +10,6 @@
     "package:weather": "node scripts/package-demo-weather.mjs"
   },
   "devDependencies": {
-    "adm-zip": "^0.5.16"
+    "adm-zip": "^0.6.0"
   }
 }
