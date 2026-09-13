@@ -1,11 +1,14 @@
 FROM node:22-alpine AS build
 WORKDIR /repo
 RUN corepack enable
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+RUN corepack prepare pnpm@10.17.1 --activate
+
 COPY package.json pnpm-workspace.yaml ./
-COPY runtimes/node-runner/package.json runtimes/node-runner/package.json
+COPY runtimes/node-runner runtimes/node-runner
+
 RUN pnpm config set registry https://registry.npmmirror.com
 RUN pnpm install --filter @yagent/node-runner... --no-frozen-lockfile
-COPY runtimes/node-runner runtimes/node-runner
 RUN pnpm --filter @yagent/node-runner build
 
 FROM node:22-alpine

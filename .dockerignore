@@ -1,0 +1,13 @@
+**/node_modules
+**/.pnpm
+**/dist
+**/*.log
+**/.cache
+runtime-data/
+.git
+.gitignore
+.vscode
+.idea
+.env
+.env.local
+infra/.env
