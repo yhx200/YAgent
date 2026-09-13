@@ -4,6 +4,7 @@ RUN corepack enable
 COPY package.json pnpm-workspace.yaml ./
 COPY packages ./packages
 COPY apps/yagent-runtime ./apps/yagent-runtime
+RUN pnpm config set registry https://registry.npmmirror.com
 RUN pnpm install --filter @yagent/runtime... --no-frozen-lockfile
 RUN pnpm --filter @yagent/runtime... build
 

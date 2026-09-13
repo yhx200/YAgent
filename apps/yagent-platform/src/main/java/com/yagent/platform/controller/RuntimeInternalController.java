@@ -44,7 +44,11 @@ public class RuntimeInternalController {
     @GetMapping("/tool-packages/file")
     public ResponseEntity<Resource> file(@RequestParam String objectKey) {
         Resource resource = packages.file(objectKey);
-        return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM).header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=package.ytool").body(resource);
+        return ResponseEntity
+                .ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=package.ytool")
+                .body(resource);
     }
 
     @GetMapping("/tools/{toolId}/versions/{version}")

@@ -1,11 +1,11 @@
-import type { AgentMessage } from '@yagent/runtime-core';
+import type {AgentMessage} from '@yagent/runtime-core';
 
 export interface SessionContext {
-  sessionId: string;
-  tenantId: number;
-  userId: number;
-  createdAt: number;
-  updatedAt: number;
-  activeCapabilities: string[];
-  messages: AgentMessage[];
+    sessionId: string;
+    tenantId: number;
+    userId: number;
+    createdAt: number;
+    updatedAt: number;
+    activeCapabilities: string[];
+    messages: AgentMessage[];
 }

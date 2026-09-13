@@ -1,5 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.yagent.platform.mapper.YaTenantInstallationMapper">
-<select id="selectInstalled" resultType="com.yagent.platform.domain.YaTenantInstallation">SELECT * FROM ya_tenant_installation WHERE tenant_id=#{tenantId} AND status='INSTALLED' AND tool_id IN <foreach collection="toolIds" item="id" open="(" separator="," close=")">#{id}</foreach></select>
-<select id="selectOneInstalled" resultType="com.yagent.platform.domain.YaTenantInstallation">SELECT * FROM ya_tenant_installation WHERE tenant_id=#{tenantId} AND tool_id=#{toolId} AND status='INSTALLED' LIMIT 1</select>
+    <select id="selectInstalled" resultType="com.yagent.platform.domain.YaTenantInstallation">SELECT * FROM
+        ya_tenant_installation WHERE tenant_id=#{tenantId} AND status='INSTALLED' AND tool_id IN
+        <foreach collection="toolIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+    </select>
+    <select id="selectOneInstalled" resultType="com.yagent.platform.domain.YaTenantInstallation">SELECT * FROM
+        ya_tenant_installation WHERE tenant_id=#{tenantId} AND tool_id=#{toolId} AND status='INSTALLED' LIMIT 1
+    </select>
 </mapper>

@@ -9,6 +9,12 @@ import java.util.Map;
 public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handle(Exception e) {
-        return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
+        return ResponseEntity
+                .badRequest()
+                .body(Map.of(
+                        "success",
+                        false,
+                        "message",
+                        e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
     }
 }
